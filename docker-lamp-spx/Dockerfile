@@ -1,10 +1,7 @@
 FROM phusion/baseimage:focal-1.1.0
-MAINTAINER Matthew Rayner <hello@rayner.io>
-ENV REFRESHED_AT 2021-09-07
+ENV REFRESHED_AT 2022-04-22
 
-# based on dgraziotin/lamp
-# MAINTAINER Daniel Graziotin <daniel@ineed.coffee>
-# updated for Ubuntu 20.04 LTS/PHP 7.4/PHP 8.0 Ferdinand Kasper <fkasper@modus-operandi.at>
+# based on mattrayner/docker-lamp
 
 ENV DOCKER_USER_ID 501 
 ENV DOCKER_USER_GID 20
@@ -32,7 +29,7 @@ RUN LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php && \
   apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C && \
   apt-get update && \
   apt-get -y upgrade && \
-  apt-get -y install postfix python3-setuptools wget git apache2 php${PHP_VERSION}-xdebug libapache2-mod-php${PHP_VERSION} mysql-server php${PHP_VERSION}-mysql pwgen php${PHP_VERSION}-apcu php${PHP_VERSION}-gd php${PHP_VERSION}-xml php${PHP_VERSION}-mbstring zip unzip php${PHP_VERSION}-zip curl php${PHP_VERSION}-curl && \
+  apt-get -y install postfix python3-setuptools wget git apache2 php${PHP_VERSION}-xdebug libapache2-mod-php${PHP_VERSION} mysql-server php${PHP_VERSION}-mysql pwgen php${PHP_VERSION}-apcu php${PHP_VERSION}-gd php${PHP_VERSION}-xml php${PHP_VERSION}-mbstring zip unzip php${PHP_VERSION}-zip curl php${PHP_VERSION}-curl zlib1g-dev php${PHP_VERSION}-dev && \
   apt-get -y autoremove && \
   apt-get -y clean && \
   echo "ServerName localhost" >> /etc/apache2/apache2.conf
@@ -53,6 +50,15 @@ ADD supporting_files/supervisord.conf /etc/supervisor/supervisord.conf
 
 # Remove pre-installed database
 RUN rm -rf /var/lib/mysql
+
+# Get the SPX profiler, build it and inejct into PHP
+RUN git clone https://github.com/NoiseByNorthwest/php-spx.git && \
+cd php-spx && \
+git checkout release/latest && \
+phpize && \
+./configure && \
+make && \
+make install
 
 # Add MySQL utils
 ADD supporting_files/create_mysql_users.sh /create_mysql_users.sh
@@ -81,6 +87,9 @@ ADD app/ /app
 #Environment variables to configure php
 ENV PHP_UPLOAD_MAX_FILESIZE 10M
 ENV PHP_POST_MAX_SIZE 10M
+
+# Configure PHP to load the SPX Profiler configuration
+ADD supporting_files/spx.ini /etc/php/7.4/apache2/conf.d/spx.ini
 
 # Add volumes for the app and MySql
 VOLUME  ["/var/lib/mysql", "/app" ]
